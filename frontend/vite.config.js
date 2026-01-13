@@ -10,5 +10,14 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: 8080
+  },
+    test: {
+    globals: true,
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'lcov'],
+      all: true
+    }
   }
 })
