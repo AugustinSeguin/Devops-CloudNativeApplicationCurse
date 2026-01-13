@@ -107,7 +107,7 @@ jobs:
           projectBaseDir: ./backend
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY_BACKEND }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.projectName=CloudNativeApp-Backend
             -Dsonar.sources=src
             -Dsonar.exclusions=node_modules/**,coverage/**,prisma/migrations/**
@@ -222,7 +222,7 @@ jobs:
           projectBaseDir: ./frontend
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY_FRONTEND }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.projectName=CloudNativeApp-Frontend
             -Dsonar.sources=src
             -Dsonar.exclusions=node_modules/**,coverage/**,dist/**
