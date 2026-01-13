@@ -2,15 +2,23 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop, feature/ci-pipeline]
+    branches: [main, develop, feature/**]
   pull_request:
     branches: [main, develop]
 
+env:
+  NODE_VERSION: "20"
+  COVERAGE_THRESHOLD: 80
+
 jobs:
-  # ========== BACKEND JOBS ==========
-  backend-lint:
-    name: Lint Backend
+  # ========== QUALITY CHECKS ==========
+  lint:
+    name: Lint ${{ matrix.app }}
     runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
 
     steps:
       - name: Checkout code
@@ -19,20 +27,42 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Backend dependencies
-        working-directory: ./backend
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.app }}/node_modules
+          key: ${{ runner.os }}-node-${{ matrix.app }}-${{ hashFiles(format('{0}/package.json', matrix.app)) }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.app }}-
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.app }}
         run: npm install
 
-      - name: Lint Backend
-        working-directory: ./backend
-        run: npm run lint
+      - name: Run ESLint
+        working-directory: ./${{ matrix.app }}
+        run: npm run lint -- --format json --output-file eslint-report.json
+        continue-on-error: true
 
-  backend-build:
-    name: Build Backend
+      - name: Upload ESLint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report-${{ matrix.app }}
+          path: ${{ matrix.app }}/eslint-report.json
+          retention-days: 30
+
+  # ========== BUILD ==========
+  build:
+    name: Build ${{ matrix.app }}
     runs-on: self-hosted
-    needs: backend-lint
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
 
     steps:
       - name: Checkout code
@@ -41,20 +71,42 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Backend dependencies
-        working-directory: ./backend
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.app }}/node_modules
+          key: ${{ runner.os }}-node-${{ matrix.app }}-${{ hashFiles(format('{0}/package.json', matrix.app)) }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.app }}-
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.app }}
         run: npm install
 
-      - name: Build Backend
-        working-directory: ./backend
+      - name: Build application
+        working-directory: ./${{ matrix.app }}
         run: npm run build
 
-  backend-test:
-    name: Backend Tests
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.app }}
+          path: |
+            ${{ matrix.app }}/dist
+            ${{ matrix.app }}/build
+          retention-days: 7
+
+  # ========== TESTS WITH COVERAGE (PARALLEL) ==========
+  test:
+    name: Test ${{ matrix.app }}
     runs-on: self-hosted
-    needs: backend-lint
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
 
     steps:
       - name: Checkout code
@@ -63,20 +115,78 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Backend dependencies
-        working-directory: ./backend
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.app }}/node_modules
+          key: ${{ runner.os }}-node-${{ matrix.app }}-${{ hashFiles(format('{0}/package.json', matrix.app)) }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.app }}-
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.app }}
         run: npm install
 
-      - name: Run Backend Tests
-        working-directory: ./backend
-        run: npm test
+      - name: Run tests with coverage
+        working-directory: ./${{ matrix.app }}
+        run: npm test -- --coverage --coverageReporters=json --coverageReporters=lcov --coverageReporters=text
 
+      - name: Check coverage threshold
+        working-directory: ./${{ matrix.app }}
+        run: |
+          COVERAGE=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(Math.floor(c.total.lines.pct))")
+          echo "Coverage: $COVERAGE%"
+          if [ $COVERAGE -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
+            echo "❌ Coverage ($COVERAGE%) is below threshold (${{ env.COVERAGE_THRESHOLD }}%)"
+            exit 1
+          fi
+          echo "✅ Coverage ($COVERAGE%) meets threshold"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.app }}
+          path: ${{ matrix.app }}/coverage
+          retention-days: 30
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('${{ matrix.app }}/coverage/coverage-summary.json'));
+            const lines = coverage.total.lines.pct.toFixed(2);
+            const statements = coverage.total.statements.pct.toFixed(2);
+            const functions = coverage.total.functions.pct.toFixed(2);
+            const branches = coverage.total.branches.pct.toFixed(2);
+
+            const body = `## 📊 Coverage Report - ${{ matrix.app }}
+
+            | Metric | Coverage |
+            |--------|----------|
+            | Lines | ${lines}% |
+            | Statements | ${statements}% |
+            | Functions | ${functions}% |
+            | Branches | ${branches}% |
+
+            ${lines >= ${{ env.COVERAGE_THRESHOLD }} ? '✅' : '❌'} Threshold: ${{ env.COVERAGE_THRESHOLD }}%`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ========== SONARCLOUD ANALYSIS ==========
   sonarcloud:
-    name: SonarCloud Backend Analysis
+    name: SonarCloud Analysis
     runs-on: self-hosted
-    needs: [backend-build, backend-test]
+    needs: [build, test]
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
 
     steps:
       - name: Checkout code
@@ -87,16 +197,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Backend dependencies
-        working-directory: ./backend
-        run: npm install
-
-      - name: Run tests with coverage
-        working-directory: ./backend
-        run: npm test -- --coverage
-        continue-on-error: true
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -104,118 +211,76 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: ./backend
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.projectName=CloudNativeApp-Backend
-            -Dsonar.sources=src
-            -Dsonar.exclusions=node_modules/**,coverage/**,prisma/migrations/**
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.projectName=CloudNativeApp
+            -Dsonar.sources=backend/src,frontend/src
+            -Dsonar.tests=backend/src,frontend/src
+            -Dsonar.test.inclusions=**/*.test.js,**/*.spec.js
+            -Dsonar.exclusions=**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,backend/prisma/migrations/**
+            -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info,frontend/coverage/lcov.info
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
-  # ========== FRONTEND JOBS ==========
-  frontend-lint:
-    name: Lint Frontend
+  # ========== DOCKER BUILD (CONDITIONAL) ==========
+  docker:
+    name: Build Docker Images
     runs-on: self-hosted
-    needs: sonarcloud
+    needs: [build, test]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    strategy:
+      matrix:
+        service: [backend, frontend]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
         with:
-          node-version: "20"
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.service }}-
 
-      - name: Install Frontend dependencies
-        working-directory: ./frontend
-        run: npm install
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          tags: ${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-      - name: Lint Frontend
-        working-directory: ./frontend
-        run: npm run lint
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-  frontend-build:
-    name: Build Frontend
+  # ========== SUMMARY REPORT ==========
+  summary:
+    name: Pipeline Summary
     runs-on: self-hosted
-    needs: frontend-lint
+    needs: [lint, build, test, sonarcloud]
+    if: always()
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Frontend dependencies
-        working-directory: ./frontend
-        run: npm install
-
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: npm run build
-
-  frontend-test:
-    name: Frontend Tests
-    runs-on: self-hosted
-    needs: frontend-lint
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Frontend dependencies
-        working-directory: ./frontend
-        run: npm install
-
-      - name: Run Frontend Tests
-        working-directory: ./frontend
-        run: npm test
-
-  frontend-sonarcloud:
-    name: SonarCloud Frontend Analysis
-    runs-on: self-hosted
-    needs: [frontend-build, frontend-test]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Frontend dependencies
-        working-directory: ./frontend
-        run: npm install
-
-      - name: Run tests with coverage
-        working-directory: ./frontend
-        run: npm test -- --coverage
-        continue-on-error: true
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: ./frontend
-          args: >
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.projectName=CloudNativeApp-Frontend
-            -Dsonar.sources=src
-            -Dsonar.exclusions=node_modules/**,coverage/**,dist/**
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+      - name: Generate summary
+        run: |
+          echo "## 🚀 Pipeline Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarCloud | ${{ needs.sonarcloud.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
