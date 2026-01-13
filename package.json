@@ -11,6 +11,9 @@
     "lint:all": "npm run lint:front && npm run lint:back",
     "test:front": "cd frontend && npm run test",
     "test:back": "cd backend && npm run test",
-    "test:all": "npm run test:front && npm run test:back"
+    "test:all": "npm run test:front && npm run test:back",
+    "build:front": "cd frontend && npm run build",
+    "build:back": "cd backend && npm run build",
+    "build:all": "npm run build:front && npm run build:back"
   }
 }
