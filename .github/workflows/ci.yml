@@ -115,6 +115,8 @@ jobs:
 
       - name: Check Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          projectBaseDir: ./backend
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -228,6 +230,8 @@ jobs:
 
       - name: Check Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          projectBaseDir: ./frontend
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
