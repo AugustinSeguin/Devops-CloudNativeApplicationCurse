@@ -8,6 +8,9 @@
     "prepare": "husky install",
     "lint:front": "cd frontend && npm run lint",
     "lint:back": "cd backend && npm run lint",
-    "lint:all": "npm run lint:front && npm run lint:back"
+    "lint:all": "npm run lint:front && npm run lint:back",
+    "test:front": "cd frontend && npm run test",
+    "test:back": "cd backend && npm run test",
+    "test:all": "npm run test:front && npm run test:back"
   }
 }
