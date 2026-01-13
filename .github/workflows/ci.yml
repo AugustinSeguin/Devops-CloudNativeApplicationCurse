@@ -105,6 +105,13 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: ./backend
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY_BACKEND }}
+            -Dsonar.projectName=CloudNativeApp-Backend
+            -Dsonar.sources=src
+            -Dsonar.exclusions=node_modules/**,coverage/**,prisma/migrations/**
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
       - name: Check Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@master
@@ -211,6 +218,13 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: ./frontend
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY_FRONTEND }}
+            -Dsonar.projectName=CloudNativeApp-Frontend
+            -Dsonar.sources=src
+            -Dsonar.exclusions=node_modules/**,coverage/**,dist/**
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
       - name: Check Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@master
