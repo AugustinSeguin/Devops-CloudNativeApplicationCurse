@@ -74,7 +74,7 @@ jobs:
         run: npm test
 
   sonarcloud:
-    name: SonarCloud Analysis
+    name: SonarCloud Backend Analysis
     runs-on: self-hosted
     needs: [backend-build, backend-test]
 
