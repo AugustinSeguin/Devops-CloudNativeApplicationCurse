@@ -10,7 +10,7 @@ env:
   NODE_VERSION: "20"
   COVERAGE_THRESHOLD: 80
   REGISTRY: ghcr.io
-  # L'image doit respecter la convention: ghcr.io/<username>/project-<service>
+  # L'image respecte la convention: ghcr.io/<username>/project-<service>
   IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/project
 
 jobs:
@@ -56,6 +56,7 @@ jobs:
         run: npm install
       - name: Run tests with coverage
         working-directory: ./${{ matrix.app }}
+        # Exécute les tests et génère la couverture
         run: npm test || echo "Tests failed but continuing for report"
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
@@ -75,7 +76,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build Image (Tag: ci-build)
-        # Contrainte TP: Tag temporaire (ci-build) et échec si le build rate
+        # Build local avec tag temporaire comme demandé
         run: |
           docker build -t ${{ matrix.service }}:ci-build ./${{ matrix.service }}
 
@@ -88,12 +89,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Environment
-        # Utilisation de docker-compose pour valider le lancement
+        # Lancement de la stack via Compose
         run: |
           docker compose up -d
-          sleep 15 # Temps pour que Postgres et Node démarrent
+          sleep 15
       - name: Run Checks
-        # Vérification obligatoire des routes /health et /whoami
+        # Test obligatoire des routes health et whoami
         run: |
           echo "Checking Health Endpoint..."
           curl -f http://localhost/api/health || (docker compose logs backend && exit 1)
@@ -126,10 +127,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and Push
         run: |
-          # Construction du nom de l'image en minuscules (requis par GHCR)
           IMAGE_ID=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          
-          # Tags demandés: SHA du commit et latest
+          # Tags demandés : Commit SHA et Latest
           docker build -t $IMAGE_ID:${{ github.sha }} -t $IMAGE_ID:latest ./${{ matrix.service }}
           docker push $IMAGE_ID:${{ github.sha }}
           docker push $IMAGE_ID:latest
@@ -144,13 +143,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Download coverage
+      - name: Download coverage backend
         uses: actions/download-artifact@v4
         with:
-          pattern: coverage-*
-          merge-multiple: true
+          name: coverage-backend
+          path: backend/coverage
+      - name: Download coverage frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-frontend
+          path: frontend/coverage
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        # Utilisation de la nouvelle action recommandée
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -159,7 +164,7 @@ jobs:
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=backend/src,frontend/src
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info,frontend/coverage/lcov.info
 
   summary:
     name: Pipeline Summary
@@ -172,6 +177,8 @@ jobs:
           echo "## 🚀 Résumé du TP Docker & CI" >> $GITHUB_STEP_SUMMARY
           echo "| Étape | Statut |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build Docker | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke Tests | ${{ needs.smoke-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Publish GHCR | ${{ needs.publish.result }} |" >> $GITHUB_STEP_SUMMARY
