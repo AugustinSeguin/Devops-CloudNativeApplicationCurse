@@ -141,11 +141,13 @@ jobs:
           fetch-depth: 0
       - name: Download coverage backend
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-backend
           path: backend/coverage
       - name: Download coverage frontend
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-frontend
           path: frontend/coverage
