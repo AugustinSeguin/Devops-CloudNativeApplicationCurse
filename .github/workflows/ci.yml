@@ -120,7 +120,6 @@ jobs:
     name: Push to GHCR
     runs-on: self-hosted
     needs: smoke-tests
-    if: github.ref == 'refs/heads/main'
     permissions:
       packages: write
       contents: read
