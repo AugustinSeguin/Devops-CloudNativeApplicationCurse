@@ -348,14 +348,14 @@ The project includes a comprehensive CI/CD pipeline (`.github/workflows/ci.yml`)
   - Coverage artifacts are uploaded for analysis
   - Failed tests don't block the pipeline (`continue-on-error`)
 
-#### 2. **Docker Build** (TP 2.1)
+#### 2. **Docker Build** 
 
 - Multi-stage Docker builds for optimized images
 - Builds both backend and frontend containers
 - Images tagged as `ci-build` for this stage
 - Supports matrix builds for parallel compilation
 
-#### 3. **Smoke Tests** (TP 2.2)
+#### 3. **Smoke Tests** 
 
 - Runs after successful Docker builds
 - Spins up the entire stack with `docker-compose`
@@ -365,7 +365,7 @@ The project includes a comprehensive CI/CD pipeline (`.github/workflows/ci.yml`)
 - Automatically cleans up with `docker compose down`
 - Uses environment secrets for database credentials
 
-#### 4. **Docker Registry Push** (TP 2.3)
+#### 4. **Docker Registry Push** 
 
 - **Trigger**: Only on `main` branch pushes
 - **Registry**: GitHub Container Registry (GHCR)
@@ -386,6 +386,10 @@ The project includes a comprehensive CI/CD pipeline (`.github/workflows/ci.yml`)
 
 - Generates GitHub workflow summary with status badges
 - Shows results of all jobs (Lint, Test, Build, Smoke Tests, Publish)
+
+#### 7. **Deploy**
+
+- Automatic deplyment with `scripts/deploy.sh`
 
 ### Required Secrets
 

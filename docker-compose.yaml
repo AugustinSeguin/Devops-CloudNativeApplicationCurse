@@ -6,15 +6,18 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-gym_management}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - back_net
 
   backend:
+    # 1. On donne le nom de l'image (indispensable pour le CD)
+    image: ghcr.io/augustinseguin/project-backend:latest
+    # 2. On laisse le build en option pour le développement local
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -31,6 +34,7 @@ services:
       - postgres
 
   frontend:
+    image: ghcr.io/augustinseguin/project-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
