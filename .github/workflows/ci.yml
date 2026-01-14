@@ -99,6 +99,7 @@ jobs:
           EOF
       - name: Setup Environment
         run: |
+          docker compose down -v || true
           docker compose up -d
           sleep 15
       - name: Run Checks
