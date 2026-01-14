@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
+const os = require('os');
 const userRoutes = require('./routes/userRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const classRoutes = require('./routes/classRoutes');
@@ -21,12 +21,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/users', userRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/classes', classRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/subscriptions', subscriptionRoutes);
+app.use('/classes', classRoutes);
+app.use('/bookings', bookingRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/auth', authRoutes);
+
+app.get('/whoami', (req, res) => {
+  res.json({
+    message: "Backend response",
+    container: os.hostname(), 
+    timestamp: new Date()
+  });
+});
 
 // Health check
 app.get('/health', (req, res) => {
