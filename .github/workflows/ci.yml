@@ -10,7 +10,6 @@ env:
   NODE_VERSION: "20"
   COVERAGE_THRESHOLD: 80
   REGISTRY: ghcr.io
-  # L'image respecte la convention: ghcr.io/<username>/project-<service>
   IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/project
 
 jobs:
@@ -56,7 +55,6 @@ jobs:
         run: npm install
       - name: Run tests with coverage
         working-directory: ./${{ matrix.app }}
-        # Exécute les tests et génère la couverture
         run: npm test || echo "Tests failed but continuing for report"
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
@@ -70,13 +68,13 @@ jobs:
     runs-on: self-hosted
     needs: [lint, test]
     strategy:
+      fail-fast: false
       matrix:
         service: [backend, frontend]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build Image (Tag: ci-build)
-        # Build local avec tag temporaire comme demandé
+      - name: "Build Image (Tag: ci-build)"
         run: |
           docker build -t ${{ matrix.service }}:ci-build ./${{ matrix.service }}
 
@@ -89,12 +87,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Environment
-        # Lancement de la stack via Compose
         run: |
           docker compose up -d
           sleep 15
       - name: Run Checks
-        # Test obligatoire des routes health et whoami
         run: |
           echo "Checking Health Endpoint..."
           curl -f http://localhost/api/health || (docker compose logs backend && exit 1)
@@ -110,12 +106,13 @@ jobs:
     runs-on: self-hosted
     needs: smoke-tests
     if: github.ref == 'refs/heads/main'
-    strategy:
-      matrix:
-        service: [backend, frontend]
     permissions:
       packages: write
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, frontend]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -128,7 +125,6 @@ jobs:
       - name: Build and Push
         run: |
           IMAGE_ID=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          # Tags demandés : Commit SHA et Latest
           docker build -t $IMAGE_ID:${{ github.sha }} -t $IMAGE_ID:latest ./${{ matrix.service }}
           docker push $IMAGE_ID:${{ github.sha }}
           docker push $IMAGE_ID:latest
@@ -154,7 +150,6 @@ jobs:
           name: coverage-frontend
           path: frontend/coverage
       - name: SonarCloud Scan
-        # Utilisation de la nouvelle action recommandée
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
