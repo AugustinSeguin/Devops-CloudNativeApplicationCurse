@@ -1,26 +1,25 @@
 #!/bin/bash
+# scripts/deploy.sh
 
-# Arrêt propre des conteneurs existants
-# On n'utilise PAS -v pour préserver le volume postgres_data
-echo "Stopping current containers..."
-docker compose down
+if grep -q "blue" ./nginx/conf.d/active_target.inc; then
+    ACTIVE="blue"
+    NEXT="green"
+else
+    ACTIVE="green"
+    NEXT="blue"
+fi
 
-# Nettoyage des images orphelines pour éviter la saturation disque (Idempotence)
-echo "Cleaning up old images..."
-docker image prune -f
+echo "🔵 Current Active: $ACTIVE | 🟢 Deploying Next: $NEXT"
 
-# Récupération des versions spécifiques via le SHA passé par GitHub Actions
-# On utilise des variables pour rendre le script réutilisable
-echo "Pulling images for SHA: ${GITHUB_SHA}"
-docker pull ghcr.io/augustinseguin/project-backend:${GITHUB_SHA}
-docker pull ghcr.io/augustinseguin/project-frontend:${GITHUB_SHA}
+export IMAGE_TAG=${GITHUB_SHA:-latest}
+docker compose -f docker-compose.base.yml -f docker-compose.${NEXT}.yml up -d --build
 
-# Tagage en 'latest' pour correspondre au fichier docker-compose.yaml
-docker tag ghcr.io/augustinseguin/project-backend:${GITHUB_SHA} ghcr.io/augustinseguin/project-backend:latest
-docker tag ghcr.io/augustinseguin/project-frontend:${GITHUB_SHA} ghcr.io/augustinseguin/project-frontend:latest
+echo "Waiting for $NEXT version to warm up..."
+sleep 15
 
-# Relance de la stack en mode détaché
-echo "Starting environment..."
-docker compose up -d
+echo "set \$target_backend  backend-${NEXT};" > ./nginx/conf.d/active_target.inc
+echo "set \$target_frontend frontend-${NEXT};" >> ./nginx/conf.d/active_target.inc
 
-echo "Deployment successful!"
+docker exec reverse-proxy nginx -s reload
+
+echo "Switch completed! Traffic is now routed to $NEXT."

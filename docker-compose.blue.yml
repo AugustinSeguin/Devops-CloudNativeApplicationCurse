@@ -1,0 +1,19 @@
+services:
+  backend-blue:
+    build: ./backend 
+    image: ghcr.io/augustinseguin/project-backend:${IMAGE_TAG:-latest}
+    container_name: backend-blue
+    env_file: ./backend/.env
+    networks:
+      - app_net
+
+  frontend-blue:
+    build: ./frontend 
+    image: ghcr.io/augustinseguin/project-frontend:${IMAGE_TAG:-latest}
+    container_name: frontend-blue
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    external: true

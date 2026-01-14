@@ -31,19 +31,28 @@ Nous avons choisi l'**Option 1** : utilisation d'upstreams et d'un include dynam
 Le proxy définit des groupes de serveurs pour chaque couleur. La sélection de la couleur active se fait via un fichier tiers :
 
 ```nginx
-upstream backend_blue  { server backend-blue:3000; }
-upstream backend_green { server backend-green:3000; }
+# Définition des groupes de serveurs (Upstreams)
+upstream backend-blue   { server backend-blue:3000; }
+upstream backend-green  { server backend-green:3000; }
+upstream frontend-blue  { server frontend-blue:80; }
+upstream frontend-green { server frontend-green:80; }
 
 server {
     listen 80;
-    # Ce fichier contient la définition des variables $active_backend et $active_frontend
-    include /etc/nginx/conf.d/active_target.conf;
+    resolver 127.0.0.11 valid=30s;
 
-    location /api {
-        proxy_pass http://$active_backend;
+    # ✅ Inclusion dynamique sécurisée (extension .inc)
+    include /etc/nginx/conf.d/active_target.inc;
+
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://$target_backend;
+        proxy_set_header Host $host;
     }
+
     location / {
-        proxy_pass http://$active_frontend;
+        proxy_pass http://$target_frontend;
+        proxy_set_header Host $host;
     }
 }
 ```
@@ -101,6 +110,7 @@ Le pipeline CI (GitHub Actions) suit la logique suivante :
 
 | Action | Commande |
 |--------|----------|
-| Initialisation | `docker compose -f docker-compose.base.yml up -d` |
-| Déploiement spécifique | `IMAGE_TAG=xxx docker compose -f docker-compose.base.yml -f docker-compose.blue.yml up -d` |
+| Forcer Rebuild | `export IMAGE_TAG=latest && docker compose -f docker-compose.base.yml -f docker-compose.blue.yml up -d --build` |
+| Vérifier le DNS | `docker exec reverse-proxy ping -c 2 backend-blue` |
+| Logs Temps Réel | `docker logs -f backend-blue` |
 | Rechargement Proxy | `docker exec reverse-proxy nginx -s reload` |

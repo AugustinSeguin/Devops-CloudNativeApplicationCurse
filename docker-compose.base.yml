@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:alpine
+    container_name: postgres-shared
+    restart: always
+    env_file: ./backend/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_net
+
+  reverse-proxy:
+    image: nginx:alpine
+    container_name: reverse-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - postgres
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: app_net
+    driver: bridge
+
+volumes:
+  postgres_data:
