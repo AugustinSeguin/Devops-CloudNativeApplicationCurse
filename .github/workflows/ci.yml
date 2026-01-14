@@ -99,8 +99,9 @@ jobs:
           EOF
       - name: Setup Environment
         run: |
+          docker kill $(docker ps -q) 2>/dev/null || true
           docker compose down -v || true
-          docker system prune -f || true
+          docker system prune -af || true
           sleep 3
           docker compose up -d
           sleep 15
