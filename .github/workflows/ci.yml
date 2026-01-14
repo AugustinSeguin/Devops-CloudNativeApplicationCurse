@@ -83,20 +83,16 @@ jobs:
     name: Smoke Tests (Health & Whoami)
     runs-on: self-hosted
     needs: docker-build
-    env:
-      POSTGRES_USER: ${secrets.POSTGRES_USER}
-      POSTGRES_PASSWORD: ${secrets.POSTGRES_PASSWORD}
-      POSTGRES_DB: ${secrets.POSTGRES_DB}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Create backend .env file
         run: |
           cat > backend/.env << EOF
-          POSTGRES_USER=${POSTGRES_USER}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          POSTGRES_DB=${POSTGRES_DB}
-          DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+          POSTGRES_USER=${{ secrets.POSTGRES_USER || 'myuser' }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'mypassword' }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB || 'gym_management' }}
+          DATABASE_URL="postgresql://${{ secrets.POSTGRES_USER || 'myuser' }}:${{ secrets.POSTGRES_PASSWORD || 'mypassword' }}@postgres:5432/${{ secrets.POSTGRES_DB || 'gym_management' }}"
           PORT=3000
           NODE_ENV=production
           FRONTEND_URL=http://localhost

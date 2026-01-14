@@ -27,8 +27,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
       - "traefik.http.services.backend.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.backend-strip.stripprefix.prefixes=/api"
-      - "traefik.http.routers.backend.middlewares=backend-strip"
     depends_on:
       - postgres
 
@@ -49,6 +47,10 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--accesslog=true"                       
+      - "--accesslog.format=json"            
+      - "--log.level=INFO"
+      - "--log.format=json"
     ports:
       - "80:80"
     volumes:

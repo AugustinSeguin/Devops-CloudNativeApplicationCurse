@@ -1,5 +1,6 @@
 // Load environment variables first, before any other imports
 require("dotenv").config();
+const pino = require('pino-http')();
 const express = require("express");
 const cors = require("cors");
 const os = require("os");
@@ -12,6 +13,8 @@ const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(pino);
 
 // Middleware
 app.use(
@@ -62,6 +65,10 @@ app.use("*", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  app.log.info({
+    event: "server_start",
+    port: PORT,
+    node_env: process.env.NODE_ENV,
+    instance: os.hostname() 
+  }, "Backend server is up");
 });
