@@ -49,6 +49,21 @@ A complete fullstack gym management application built with modern web technologi
 - **Docker Compose** for orchestration
 - **PostgreSQL** database
 - **Nginx** for frontend serving
+- **GitHub Actions** CI/CD pipeline with self-hosted runner
+- **SonarCloud** for code quality analysis
+
+### CI/CD Pipeline
+
+Le pipeline CI automatise la validation du code sur chaque push/PR :
+
+- **Lint** : Vérification ESLint du code backend et frontend
+- **Build** : Compilation des applications backend et frontend
+- **Tests** : Exécution des tests unitaires avec couverture de code
+- **SonarCloud** : Analyse statique du code et vérification des quality gates
+- **Self-hosted runner** : Exécution sur machine locale pour un contrôle total
+- **Secrets** : `SONAR_TOKEN`, `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY`
+
+Tous les jobs doivent passer pour valider la PR. Le statut SonarCloud est automatiquement reporté dans GitHub.
 
 ## Quick Start
 
