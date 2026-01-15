@@ -198,7 +198,9 @@ jobs:
     name: Deploy to Local Production
     runs-on: self-hosted
     needs: publish
-    if: github.ref == 'refs/heads/main'
+    # to test deployment only on feature branch
+    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/feature/cd'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
