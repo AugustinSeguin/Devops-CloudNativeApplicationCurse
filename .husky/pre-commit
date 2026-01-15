@@ -1,0 +1,3 @@
+npm run lint:all
+npm run build:all
+npm run test:all
