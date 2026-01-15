@@ -199,8 +199,8 @@ jobs:
     runs-on: self-hosted
     needs: publish
     # to test deployment only on feature branch
-    # if: github.ref == 'refs/heads/main'
-    if: github.ref == 'refs/heads/feature/cd'
+    # if: github.ref == 'refs/heads/feature/cd'
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
