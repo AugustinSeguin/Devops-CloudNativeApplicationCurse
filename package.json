@@ -15,5 +15,9 @@
     "build:front": "cd frontend && npm run build",
     "build:back": "cd backend && npm run build",
     "build:all": "npm run build:front && npm run build:back"
+  },
+  "dependencies": {
+    "@willsoto/nestjs-prometheus": "^6.0.2",
+    "prom-client": "^15.1.3"
   }
 }
