@@ -59,7 +59,7 @@ server {
 
 ### Le Switch
 
-La bascule s'effectue en réécrivant le fichier `active_target.conf` et en exécutant `nginx -s reload`. Cette méthode permet de changer de version **sans redémarrer le conteneur Nginx**, garantissant l'absence de coupure pour l'utilisateur.
+La bascule s'effectue en réécrivant le fichier `active_target.inc` et en exécutant `nginx -s reload`. Cette méthode permet de changer de version **sans redémarrer le conteneur Nginx**, garantissant l'absence de coupure pour l'utilisateur.
 
 ---
 
@@ -67,7 +67,7 @@ La bascule s'effectue en réécrivant le fichier `active_target.conf` et en exé
 
 Le pipeline CI (GitHub Actions) suit la logique suivante :
 
-1. **Détection** : Le script `deploy.sh` lit `active_target.conf` pour identifier la couleur en production (ex: `blue`).
+1. **Détection** : Le script `deploy.sh` lit `active_target.inc` pour identifier la couleur en production (ex: `blue`).
 
 2. **Déploiement Inactif** : Il déploie la nouvelle version sur la couleur opposée (`green`) :
    ```bash
@@ -77,7 +77,7 @@ Le pipeline CI (GitHub Actions) suit la logique suivante :
 3. **Validation (Warm-up)** : Une pause de 15s est observée (ou un `curl` sur le healthcheck) pour s'assurer que l'instance `green` est prête.
 
 4. **Bascule** :
-   - Réécriture de `active_target.conf` pour pointer vers `green`.
+   - Réécriture de `active_target.inc` pour pointer vers `green`.
    - Commande : `docker exec reverse-proxy nginx -s reload`.
 
 5. **Rollback** : L'ancienne version (`blue`) reste allumée. En cas d'alerte, le script peut instantanément ré-écraser la conf Nginx pour pointer vers `blue`.
@@ -91,7 +91,7 @@ Le pipeline CI (GitHub Actions) suit la logique suivante :
                     |
           +---------v---------+
           |   Nginx Proxy     | <--- Rechargement dynamique
-          | (active_target.conf)|
+          | (active_target.inc)|
           +---------+---------+
                     |
           +---------+---------+
