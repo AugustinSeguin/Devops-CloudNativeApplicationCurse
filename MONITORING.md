@@ -1,31 +1,68 @@
-# 📊 Observabilité & Monitoring - Projet NestJS/Vue
+# Rapport d'Observabilité - TP6
 
-Ce document décrit la stack de monitoring mise en place pour surveiller l'infrastructure Blue/Green.
+## 🏗️ Architecture de la Stack
 
-## 🏗 Architecture Globale
+Le système de monitoring est basé sur la stack **PLG (Prometheus, Loki, Grafana)** pour assurer une visibilité complète :
 
-La stack repose sur quatre piliers interconnectés :
+- **Prometheus** : Collecte les métriques de performance du backend via l'endpoint `/metrics`.
+- **Loki** : Agrège les logs envoyés par les conteneurs.
+- **Promtail** : Agent de collecte qui surveille les logs Docker et les pousse vers Loki.
+- **Grafana** : Interface de visualisation centralisant les données de Prometheus et Loki.
 
-1. **Collecte des Métriques (Pull)** : Prometheus interroge l'application toutes les 15s sur l'endpoint `/metrics`.
-2. **Collecte des Logs (Push)** : Promtail lit les logs Docker via le socket UNIX et les expédie à Loki.
-3. **Stockage** : Prometheus (séries temporelles) et Loki (logs indexés par labels).
-4. **Visualisation** : Grafana centralise les données pour créer des dashboards.
+## 🚦 Matrice des Flux et Ports
 
-### Schéma de flux
-[Application (NestJS)] --(/metrics)--> [Prometheus] <--- [Grafana]
-[Docker Logs] -------->(Promtail)------> [Loki] <------- [Grafana]
+| Service    | Port | Rôle                                               |
+| ---------- | ---- | -------------------------------------------------- |
+| Prometheus | 9090 | Stockage et requêtage des métriques (TSDB)         |
+| Grafana    | 3001 | Dashboards et alertes (Visualisation)              |
+| Loki       | 3100 | Base de données de logs                            |
+| Backend    | 3000 | Application exposant les métriques via prom-client |
 
-## 🚦 Ports & Accès
+## 📈 Métriques Clés Configurées
 
-| Service      | Port Interne | Port Externe (Host) | Rôle                           |
-| :----------- | :----------- | :------------------ | :----------------------------- |
-| **Prometheus** | 9090         | 9090                | Serveur de métriques           |
-| **Grafana** | 3000         | 3001* | Visualisation (Dashboard)      |
-| **Loki** | 3100         | 3100 (interne)      | Moteur d'agrégation de logs    |
-| **Promtail** | 9080         | -                   | Agent de collecte de logs      |
+### Taux de requêtes (Throughput)
 
-> *Note : Comme notre Frontend Blue/Green utilise déjà le port 80 (via Nginx), nous utilisons le port 3001 ou 3000 pour Grafana selon les disponibilités.*
+Mesure du nombre de requêtes par seconde groupées par code HTTP.
 
-## 💉 Intégration Applicative
-- **NestJS** : Utilisation du module `@willsoto/nestjs-prometheus` pour exposer les métriques au format OpenMetrics.
-- **Docker** : Utilisation du driver `json-file` (par défaut) pour permettre à Promtail de lire les flux `stdout`.
+**Requête :**
+
+```promql
+sum(rate(http_request_duration_seconds_count[1m])) by (route, code)
+```
+
+### Latence (Temps de réponse)
+
+Calcul de la durée moyenne de traitement d'une requête.
+
+**Requête :**
+
+```promql
+rate(http_request_duration_seconds_sum[1m]) / rate(http_request_duration_seconds_count[1m])
+```
+
+## 📜 Schéma d'Architecture
+
+```mermaid
+graph LR
+    subgraph "Application"
+        A[Backend NestJS] -- "/metrics" --> B(Prometheus)
+        A -- "stdout/logs" --> C(Docker Logs)
+    end
+
+    subgraph "Monitoring"
+        C --> D[Promtail]
+        D --> E[Loki]
+        B --> F[Grafana]
+        E --> F[Grafana]
+    end
+```
+
+## 📸 Captures du Monitoring
+
+### Dashboard Grafana
+
+_À insérer : Capture du Dashboard avec les deux courbes de métriques (taux de requêtes et latence)_
+
+### Vue Explore Loki
+
+_À insérer : Capture de la vue Explore avec la requête `{container="backend-blue"}` affichant les logs collectés_
