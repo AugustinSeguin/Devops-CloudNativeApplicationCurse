@@ -226,11 +226,12 @@ This project follows a **feature branch workflow**:
    - Naming convention: `feature/description` (e.g., `feature/user-auth`)
    - Examples: `feature/booking-system`, `bugfix/login-issue`, `chore/dependencies-update`
 
-**Type of commit**
+**Type of commit** 
 
 - `feat` - A new feature
 - `fix` - A bug fix
 - `chore` - Build process, dependencies, or tooling changes
+
 
 #### Git Hooks (Husky)
 
