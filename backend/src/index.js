@@ -1,9 +1,12 @@
-// Load environment variables first, before any other imports
 require("dotenv").config();
-const pino = require('pino-http')();
+
 const express = require("express");
+const logger = require("pino")();
+const pinoHttp = require("pino-http")({ logger });
 const cors = require("cors");
 const os = require("os");
+
+// Routes imports
 const userRoutes = require("./routes/userRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const classRoutes = require("./routes/classRoutes");
@@ -14,7 +17,9 @@ const authRoutes = require("./routes/authRoutes");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(pino);
+app.log = logger;
+
+app.use(pinoHttp);
 
 // Middleware
 app.use(
@@ -42,12 +47,10 @@ app.get("/whoami", (req, res) => {
   });
 });
 
-// Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
@@ -59,16 +62,17 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-app.listen(PORT, () => {
-  app.log.info({
-    event: "server_start",
-    port: PORT,
-    node_env: process.env.NODE_ENV,
-    instance: os.hostname() 
-  }, "Backend server is up");
+app.listen(PORT, "0.0.0.0", () => {
+  logger.info(
+    {
+      event: "server_start",
+      port: PORT,
+      instance: os.hostname(),
+    },
+    "Backend server is up"
+  );
 });

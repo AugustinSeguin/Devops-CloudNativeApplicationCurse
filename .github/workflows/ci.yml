@@ -193,3 +193,19 @@ jobs:
           echo "| Build Docker | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke Tests | ${{ needs.smoke-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Publish GHCR | ${{ needs.publish.result }} |" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to Local Production
+    runs-on: self-hosted
+    needs: publish
+    # to test deployment only on feature branch
+    # if: github.ref == 'refs/heads/feature/cd'
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Deployment Script
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: ./scripts/deploy.sh
