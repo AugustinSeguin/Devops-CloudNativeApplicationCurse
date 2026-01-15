@@ -335,6 +335,180 @@ docker exec -it gym_db psql -U postgres -d gym_management
 4. Add tests if applicable
 5. Submit a pull request
 
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+The project includes a comprehensive CI/CD pipeline (`.github/workflows/ci.yml`) that automates:
+
+#### 1. **Quality Checks**
+
+- **Linting**: ESLint validation for backend and frontend
+- **Testing**: Jest unit tests with coverage reports
+  - Both backend and frontend are tested
+  - Coverage artifacts are uploaded for analysis
+  - Failed tests don't block the pipeline (`continue-on-error`)
+
+#### 2. **Docker Build** (TP 2.1)
+
+- Multi-stage Docker builds for optimized images
+- Builds both backend and frontend containers
+- Images tagged as `ci-build` for this stage
+- Supports matrix builds for parallel compilation
+
+#### 3. **Smoke Tests** (TP 2.2)
+
+- Runs after successful Docker builds
+- Spins up the entire stack with `docker-compose`
+- Validates:
+  - **Health endpoint**: `GET /api/health`
+  - **Whoami endpoint**: `GET /api/whoami`
+- Automatically cleans up with `docker compose down`
+- Uses environment secrets for database credentials
+
+#### 4. **Docker Registry Push** (TP 2.3)
+
+- **Trigger**: Only on `main` branch pushes
+- **Registry**: GitHub Container Registry (GHCR)
+- **Authentication**: Uses `${{ secrets.GITHUB_TOKEN }}`
+- **Tagging**:
+  - `ghcr.io/username/project-{service}:{git-sha}`
+  - `ghcr.io/username/project-{service}:latest`
+- Push to both image tags
+
+#### 5. **Code Quality Analysis**
+
+- **SonarCloud** integration
+- Analyzes coverage reports
+- Reports vulnerabilities and code smells
+- Requires `SONAR_TOKEN`, `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY` secrets
+
+#### 6. **Pipeline Summary**
+
+- Generates GitHub workflow summary with status badges
+- Shows results of all jobs (Lint, Test, Build, Smoke Tests, Publish)
+
+### Required Secrets
+
+Configure these in GitHub Settings → Secrets and variables → Actions:
+
+```
+POSTGRES_USER          # Database user (default: myuser)
+POSTGRES_PASSWORD      # Database password (default: mypassword)
+POSTGRES_DB            # Database name (default: gym_management)
+SONAR_TOKEN            # SonarCloud authentication
+SONAR_ORGANIZATION     # SonarCloud organization key
+SONAR_PROJECT_KEY      # SonarCloud project key
+```
+
+### Structured Logging
+
+The backend implements structured logging with **pino-http** for cloud-native observability:
+
+#### Log Format
+
+- **Production**: JSON format (machine-readable)
+- **Development**: Colorized console output (human-readable)
+
+#### Log Fields
+
+```json
+{
+  "timestamp": "2024-01-14 10:30:45",
+  "level": "info",
+  "method": "GET",
+  "path": "/api/users",
+  "statusCode": 200,
+  "duration": "125ms",
+  "ip": "192.168.1.100",
+  "service": "gym-backend",
+  "environment": "production",
+  "hostname": "backend-container-xyz"
+}
+```
+
+#### Features
+
+- Request/response logging with duration tracking
+- Automatic error logging for 4xx and 5xx responses
+- Context awareness (IP, user agent, request path)
+- Ready for log aggregation (Loki, ELK Stack)
+- Compatible with monitoring tools (Prometheus, Grafana)
+
+### Docker Architecture
+
+#### Multi-Stage Build
+
+```dockerfile
+# Stage 1: Build
+- Compiles dependencies
+- Creates Prisma client
+- Generates optimized bundles
+
+# Stage 2: Production
+- Minimal runtime image
+- Only necessary artifacts
+- Security-focused (non-root user)
+```
+
+#### Services
+
+**Backend (Node.js 18 Alpine)**
+
+- Multi-stage build for minimal size
+- Prisma migrations on startup
+- Health checks configured
+- Structured JSON logging
+
+**Frontend (Nginx Alpine)**
+
+- Vite build optimization
+- Nginx reverse proxy
+- Gzip compression enabled
+- Static asset serving
+
+**Database (PostgreSQL Alpine)**
+
+- Alpine Linux for minimal footprint
+- Volume persistence
+- Automatic initialization
+
+**Traefik (v3.1)**
+
+- Reverse proxy and load balancer
+- Automatic Docker service discovery
+- Path-based routing (`/api` → backend, `/` → frontend)
+- JSON access logs for monitoring
+
+### Running Locally
+
+```bash
+# Start the stack
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Stop the stack
+docker-compose down
+
+# Clean everything (including volumes)
+docker-compose down -v
+```
+
+### Health Checks
+
+```bash
+# Backend health
+curl http://localhost:3000/api/health
+
+# Container info
+curl http://localhost:3000/api/whoami
+
+# Frontend
+curl http://localhost/
+```
+
 ## License
 
 This project is licensed under the MIT License.
