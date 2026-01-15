@@ -23,8 +23,7 @@ services:
 
 networks:
   app_net:
-    name: app_net
-    driver: bridge
+    name: app_net  
 
 volumes:
   postgres_data:

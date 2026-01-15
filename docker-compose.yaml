@@ -15,9 +15,7 @@ services:
       - back_net
 
   backend:
-    # 1. On donne le nom de l'image (indispensable pour le CD)
     image: ghcr.io/augustinseguin/project-backend:latest
-    # 2. On laisse le build en option pour le développement local
     build:
       context: ./backend
       dockerfile: Dockerfile

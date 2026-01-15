@@ -108,9 +108,28 @@ Le pipeline CI (GitHub Actions) suit la logique suivante :
 
 ## 5. Commandes clés pour la CI
 
-| Action | Commande |
-|--------|----------|
-| Forcer Rebuild | `export IMAGE_TAG=latest && docker compose -f docker-compose.base.yml -f docker-compose.blue.yml up -d --build` |
-| Vérifier le DNS | `docker exec reverse-proxy ping -c 2 backend-blue` |
-| Logs Temps Réel | `docker logs -f backend-blue` |
-| Rechargement Proxy | `docker exec reverse-proxy nginx -s reload` |
+**Set color**
+
+```sh 
+# Set green 
+echo 'set $target_backend  backend-green;' > nginx/conf.d/active_target.inc
+echo 'set $target_frontend frontend-green;' >> nginx/conf.d/active_target.inc
+``` 
+
+**Logs** 
+
+`docker logs -f backend-blue` 
+
+**Reload Proxy** 
+
+`docker exec reverse-proxy nginx -s reload` 
+
+**Smoke tests**
+
+```sh
+# identify docker container id
+docker ps
+
+curl http://localhost/api/whoami
+```
+

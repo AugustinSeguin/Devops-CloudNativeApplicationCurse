@@ -1,2 +1,2 @@
-set $target_backend  backend-blue;
-set $target_frontend frontend-blue;
+set $target_backend  backend-green;
+set $target_frontend frontend-green;
